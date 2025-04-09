@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Alert Management</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Filter Section -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <select id="alertTypeFilter" class="form-select">
+                                <option value="">All Types</option>
+                                <option value="response_time">Response Time</option>
+                                <option value="error_rate">Error Rate</option>
+                                <option value="usage_spike">Usage Spike</option>
+                                <option value="unauthorized">Unauthorized Access</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select id="alertLevelFilter" class="form-select">
+                                <option value="">All Levels</option>
+                                <option value="warning">Warning</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select id="timeRangeFilter" class="form-select">
+                                <option value="24h">Last 24 Hours</option>
+                                <option value="7d">Last 7 Days</option>
+                                <option value="30d">Last 30 Days</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select id="statusFilter" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="acknowledged">Acknowledged</option>
+                                <option value="resolved">Resolved</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Custom Date Range (Hidden by default) -->
+                    <div id="customDateRange" class="row mb-3" style="display: none;">
+                        <div class="col-md-6">
+                            <input type="date" id="startDate" class="form-control" placeholder="Start Date">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="date" id="endDate" class="form-control" placeholder="End Date">
+                        </div>
+                    </div>
+
+                    <!-- Alert Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">Active Alerts</h6>
+                                    <h2 id="activeAlertsCount">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">Warning Alerts</h6>
+                                    <h2 id="warningAlertsCount">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">Critical Alerts</h6>
+                                    <h2 id="criticalAlertsCount">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <h6 class="card-title">Resolved Today</h6>
+                                    <h2 id="resolvedTodayCount">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alert Settings -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Alert Settings</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="alertSettingsForm">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <h6>Response Time Thresholds (seconds)</h6>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Warning</label>
+                                                    <input type="number" class="form-control" id="responseTimeWarning" step="0.1">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Critical</label>
+                                                    <input type="number" class="form-control" id="responseTimeCritical" step="0.1">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6>Error Rate Thresholds (%)</h6>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Warning</label>
+                                                    <input type="number" class="form-control" id="errorRateWarning" step="0.1">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Critical</label>
+                                                    <input type="number" class="form-control" id="errorRateCritical" step="0.1">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6>Usage Spike Thresholds (%)</h6>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Warning</label>
+                                                    <input type="number" class="form-control" id="usageSpikeWarning" step="0.1">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Critical</label>
+                                                    <input type="number" class="form-control" id="usageSpikeCritical" step="0.1">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Save Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Alerts Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Active Alerts</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="activeAlertsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Level</th>
+                                            <th>Message</th>
+                                            <th>Value</th>
+                                            <th>Threshold</th>
+                                            <th>API Key</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alert History Table -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Alert History</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="alertHistoryTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Level</th>
+                                            <th>Message</th>
+                                            <th>Value</th>
+                                            <th>Status</th>
+                                            <th>Created</th>
+                                            <th>Resolved</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Details Modal -->
+<div class="modal fade" id="alertDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Alert Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Basic Information</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Type:</th>
+                                <td id="modalAlertType"></td>
+                            </tr>
+                            <tr>
+                                <th>Level:</th>
+                                <td id="modalAlertLevel"></td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td id="modalAlertStatus"></td>
+                            </tr>
+                            <tr>
+                                <th>Created:</th>
+                                <td id="modalAlertCreated"></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Metrics</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Value:</th>
+                                <td id="modalAlertValue"></td>
+                            </tr>
+                            <tr>
+                                <th>Threshold:</th>
+                                <td id="modalAlertThreshold"></td>
+                            </tr>
+                            <tr>
+                                <th>API Key:</th>
+                                <td id="modalAlertApiKey"></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Message</h6>
+                        <p id="modalAlertMessage" class="text-muted"></p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Timeline</h6>
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <p class="mb-0">Alert created</p>
+                                    <small class="text-muted" id="modalAlertCreatedTime"></small>
+                                </div>
+                            </div>
+                            <div class="timeline-item" id="modalAlertAcknowledgedItem" style="display: none;">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <p class="mb-0">Alert acknowledged</p>
+                                    <small class="text-muted" id="modalAlertAcknowledgedTime"></small>
+                                </div>
+                            </div>
+                            <div class="timeline-item" id="modalAlertResolvedItem" style="display: none;">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <p class="mb-0">Alert resolved</p>
+                                    <small class="text-muted" id="modalAlertResolvedTime"></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="acknowledgeAlertBtn">Acknowledge</button>
+                <button type="button" class="btn btn-success" id="resolveAlertBtn">Resolve</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize DataTables
+    const activeAlertsTable = $('#activeAlertsTable').DataTable({
+        order: [[6, 'desc']],
+        pageLength: 10
+    });
+
+    const alertHistoryTable = $('#alertHistoryTable').DataTable({
+        order: [[5, 'desc']],
+        pageLength: 10
+    });
+
+    // Load initial data
+    loadAlertData();
+    loadAlertSettings();
+
+    // Set up auto-refresh
+    setInterval(loadAlertData, 30000);
+
+    // Filter event listeners
+    $('#alertTypeFilter, #alertLevelFilter, #statusFilter').on('change', function() {
+        loadAlertData();
+    });
+
+    $('#timeRangeFilter').on('change', function() {
+        if ($(this).val() === 'custom') {
+            $('#customDateRange').show();
+        } else {
+            $('#customDateRange').hide();
+            loadAlertData();
+        }
+    });
+
+    $('#startDate, #endDate').on('change', function() {
+        if ($('#startDate').val() && $('#endDate').val()) {
+            loadAlertData();
+        }
+    });
+
+    // Alert Settings Form
+    $('#alertSettingsForm').on('submit', function(e) {
+        e.preventDefault();
+        saveAlertSettings();
+    });
+
+    // Modal Buttons
+    $('#acknowledgeAlertBtn').on('click', function() {
+        const alertId = $(this).data('alert-id');
+        acknowledgeAlert(alertId);
+    });
+
+    $('#resolveAlertBtn').on('click', function() {
+        const alertId = $(this).data('alert-id');
+        resolveAlert(alertId);
+    });
+
+    // Functions
+    function loadAlertData() {
+        const filters = {
+            type: $('#alertTypeFilter').val(),
+            level: $('#alertLevelFilter').val(),
+            status: $('#statusFilter').val(),
+            timeRange: $('#timeRangeFilter').val()
+        };
+
+        if (filters.timeRange === 'custom') {
+            filters.startDate = $('#startDate').val();
+            filters.endDate = $('#endDate').val();
+        }
+
+        // Load active alerts
+        fetch('/api/v1/alerts?' + new URLSearchParams(filters))
+            .then(response => response.json())
+            .then(data => {
+                updateActiveAlertsTable(data);
+                updateAlertCounts(data);
+            });
+
+        // Load alert history
+        fetch('/api/v1/alerts/history?' + new URLSearchParams(filters))
+            .then(response => response.json())
+            .then(data => {
+                updateAlertHistoryTable(data);
+            });
+    }
+
+    function loadAlertSettings() {
+        fetch('/api/v1/alerts/settings')
+            .then(response => response.json())
+            .then(data => {
+                $('#responseTimeWarning').val(data.response_time.warning);
+                $('#responseTimeCritical').val(data.response_time.critical);
+                $('#errorRateWarning').val(data.error_rate.warning);
+                $('#errorRateCritical').val(data.error_rate.critical);
+                $('#usageSpikeWarning').val(data.usage_spike.warning);
+                $('#usageSpikeCritical').val(data.usage_spike.critical);
+            });
+    }
+
+    function saveAlertSettings() {
+        const settings = {
+            response_time: {
+                warning: parseFloat($('#responseTimeWarning').val()),
+                critical: parseFloat($('#responseTimeCritical').val())
+            },
+            error_rate: {
+                warning: parseFloat($('#errorRateWarning').val()),
+                critical: parseFloat($('#errorRateCritical').val())
+            },
+            usage_spike: {
+                warning: parseFloat($('#usageSpikeWarning').val()),
+                critical: parseFloat($('#usageSpikeCritical').val())
+            }
+        };
+
+        fetch('/api/v1/alerts/settings', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(settings)
+        })
+        .then(response => response.json())
+        .then(data => {
+            showMessage('Settings saved successfully', 'success');
+        })
+        .catch(error => {
+            showMessage('Error saving settings', 'error');
+        });
+    }
+
+    function updateActiveAlertsTable(alerts) {
+        activeAlertsTable.clear();
+        alerts.forEach(alert => {
+            activeAlertsTable.row.add([
+                alert.type,
+                `<span class="badge bg-${getAlertLevelClass(alert.level)}">${alert.level}</span>`,
+                alert.message,
+                alert.value,
+                alert.threshold,
+                alert.api_key_name,
+                formatDate(alert.created_at),
+                `<button class="btn btn-sm btn-primary" onclick="showAlertDetails(${alert.id})">Details</button>`
+            ]);
+        });
+        activeAlertsTable.draw();
+    }
+
+    function updateAlertHistoryTable(alerts) {
+        alertHistoryTable.clear();
+        alerts.forEach(alert => {
+            alertHistoryTable.row.add([
+                alert.type,
+                `<span class="badge bg-${getAlertLevelClass(alert.level)}">${alert.level}</span>`,
+                alert.message,
+                alert.value,
+                `<span class="badge bg-${getAlertStatusClass(alert.status)}">${alert.status}</span>`,
+                formatDate(alert.created_at),
+                alert.resolved_at ? formatDate(alert.resolved_at) : '-'
+            ]);
+        });
+        alertHistoryTable.draw();
+    }
+
+    function updateAlertCounts(alerts) {
+        const counts = {
+            active: 0,
+            warning: 0,
+            critical: 0,
+            resolved: 0
+        };
+
+        alerts.forEach(alert => {
+            if (alert.status === 'active') counts.active++;
+            if (alert.level === 'warning') counts.warning++;
+            if (alert.level === 'critical') counts.critical++;
+            if (alert.status === 'resolved' && isToday(alert.resolved_at)) counts.resolved++;
+        });
+
+        $('#activeAlertsCount').text(counts.active);
+        $('#warningAlertsCount').text(counts.warning);
+        $('#criticalAlertsCount').text(counts.critical);
+        $('#resolvedTodayCount').text(counts.resolved);
+    }
+
+    function showAlertDetails(alertId) {
+        fetch(`/api/v1/alerts/${alertId}`)
+            .then(response => response.json())
+            .then(alert => {
+                $('#modalAlertType').text(alert.type);
+                $('#modalAlertLevel').text(alert.level);
+                $('#modalAlertStatus').text(alert.status);
+                $('#modalAlertCreated').text(formatDate(alert.created_at));
+                $('#modalAlertValue').text(alert.value);
+                $('#modalAlertThreshold').text(alert.threshold);
+                $('#modalAlertApiKey').text(alert.api_key_name);
+                $('#modalAlertMessage').text(alert.message);
+                $('#modalAlertCreatedTime').text(formatDate(alert.created_at));
+
+                if (alert.acknowledged_at) {
+                    $('#modalAlertAcknowledgedItem').show();
+                    $('#modalAlertAcknowledgedTime').text(formatDate(alert.acknowledged_at));
+                } else {
+                    $('#modalAlertAcknowledgedItem').hide();
+                }
+
+                if (alert.resolved_at) {
+                    $('#modalAlertResolvedItem').show();
+                    $('#modalAlertResolvedTime').text(formatDate(alert.resolved_at));
+                } else {
+                    $('#modalAlertResolvedItem').hide();
+                }
+
+                $('#acknowledgeAlertBtn').data('alert-id', alertId);
+                $('#resolveAlertBtn').data('alert-id', alertId);
+
+                $('#acknowledgeAlertBtn').prop('disabled', alert.status !== 'active');
+                $('#resolveAlertBtn').prop('disabled', alert.status === 'resolved');
+
+                $('#alertDetailsModal').modal('show');
+            });
+    }
+
+    function acknowledgeAlert(alertId) {
+        fetch(`/api/v1/alerts/${alertId}/acknowledge`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            $('#alertDetailsModal').modal('hide');
+            loadAlertData();
+            showMessage('Alert acknowledged successfully', 'success');
+        })
+        .catch(error => {
+            showMessage('Error acknowledging alert', 'error');
+        });
+    }
+
+    function resolveAlert(alertId) {
+        fetch(`/api/v1/alerts/${alertId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status: 'resolved',
+                resolved_at: new Date().toISOString()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            $('#alertDetailsModal').modal('hide');
+            loadAlertData();
+            showMessage('Alert resolved successfully', 'success');
+        })
+        .catch(error => {
+            showMessage('Error resolving alert', 'error');
+        });
+    }
+
+    function getAlertLevelClass(level) {
+        return level === 'critical' ? 'danger' : 'warning';
+    }
+
+    function getAlertStatusClass(status) {
+        switch (status) {
+            case 'active': return 'primary';
+            case 'acknowledged': return 'warning';
+            case 'resolved': return 'success';
+            default: return 'secondary';
+        }
+    }
+
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleString();
+    }
+
+    function isToday(dateString) {
+        if (!dateString) return false;
+        const date = new Date(dateString);
+        const today = new Date();
+        return date.toDateString() === today.toDateString();
+    }
+
+    function showMessage(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alert = $(`
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `);
+        $('.container-fluid').prepend(alert);
+        setTimeout(() => alert.alert('close'), 5000);
+    }
+});
+</script>
+{% endblock %} 

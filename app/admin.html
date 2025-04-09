@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - MCP Vulnerability Server</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #343a40;
+            color: white;
+        }
+        .nav-link {
+            color: rgba(255,255,255,.75);
+        }
+        .nav-link:hover {
+            color: white;
+        }
+        .nav-link.active {
+            color: white;
+        }
+        .main-content {
+            padding: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .ticket-priority-high {
+            border-left: 4px solid #dc3545;
+        }
+        .ticket-priority-medium {
+            border-left: 4px solid #ffc107;
+        }
+        .ticket-priority-low {
+            border-left: 4px solid #28a745;
+        }
+        .ticket-status-open {
+            color: #dc3545;
+        }
+        .ticket-status-in_progress {
+            color: #ffc107;
+        }
+        .ticket-status-closed {
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 px-0 sidebar">
+                <div class="p-3">
+                    <h4>Admin Dashboard</h4>
+                </div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-section="overview">
+                            <i class="fas fa-chart-line"></i> Overview
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-section="users">
+                            <i class="fas fa-users"></i> Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-section="api-keys">
+                            <i class="fas fa-key"></i> API Keys
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-section="tickets">
+                            <i class="fas fa-ticket-alt"></i> Support Tickets
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 main-content">
+                <!-- Overview Section -->
+                <div id="overview" class="section">
+                    <h2 class="mb-4">Overview</h2>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Total Users</h5>
+                                    <h2 id="totalUsers">-</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Active API Keys</h5>
+                                    <h2 id="activeApiKeys">-</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Open Tickets</h5>
+                                    <h2 id="openTickets">-</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Charts -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Vulnerability Trends</h5>
+                                    <canvas id="vulnerabilityTrendsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Severity Distribution</h5>
+                                    <canvas id="severityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">API Usage</h5>
+                                    <canvas id="apiUsageChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">User Activity</h5>
+                                    <canvas id="userActivityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Section -->
+                <div id="users" class="section d-none">
+                    <h2 class="mb-4">Users</h2>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Last Login</th>
+                                    <th>API Keys</th>
+                                    <th>Tickets</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- API Keys Section -->
+                <div id="api-keys" class="section d-none">
+                    <h2 class="mb-4">API Keys</h2>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Last Used</th>
+                                    <th>Usage Count</th>
+                                </tr>
+                            </thead>
+                            <tbody id="apiKeysTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tickets Section -->
+                <div id="tickets" class="section d-none">
+                    <h2 class="mb-4">Support Tickets</h2>
+                    <div class="mb-3">
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary" data-filter="all">All</button>
+                            <button class="btn btn-outline-secondary" data-filter="open">Open</button>
+                            <button class="btn btn-outline-secondary" data-filter="in_progress">In Progress</button>
+                            <button class="btn btn-outline-secondary" data-filter="closed">Closed</button>
+                        </div>
+                    </div>
+                    <div id="ticketsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Modal -->
+    <div class="modal fade" id="ticketModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ticket Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="ticketDetails"></div>
+                    <div class="mt-4">
+                        <h6>Responses</h6>
+                        <div id="ticketResponses"></div>
+                        <form id="responseForm" class="mt-3">
+                            <div class="mb-3">
+                                <textarea class="form-control" id="responseMessage" rows="3" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Send Response</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // State management
+        let currentTicketId = null;
+        let ticketModal = null;
+
+        // DOM Elements
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const usersTableBody = document.getElementById('usersTableBody');
+        const apiKeysTableBody = document.getElementById('apiKeysTableBody');
+        const ticketsList = document.getElementById('ticketsList');
+        const ticketDetails = document.getElementById('ticketDetails');
+        const ticketResponses = document.getElementById('ticketResponses');
+        const responseForm = document.getElementById('responseForm');
+        const responseMessage = document.getElementById('responseMessage');
+
+        // Initialize charts
+        let vulnerabilityTrendsChart = null;
+        let severityChart = null;
+        let apiUsageChart = null;
+        let userActivityChart = null;
+
+        // Event Listeners
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = e.target.dataset.section;
+                showSection(section);
+            });
+        });
+
+        document.querySelectorAll('[data-filter]').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const filter = e.target.dataset.filter;
+                loadTickets(filter);
+            });
+        });
+
+        responseForm.addEventListener('submit', handleResponseSubmit);
+
+        // Functions
+        function showSection(sectionId) {
+            sections.forEach(section => {
+                section.classList.add('d-none');
+            });
+            document.getElementById(sectionId).classList.remove('d-none');
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+            
+            loadSectionData(sectionId);
+        }
+
+        async function loadSectionData(sectionId) {
+            switch(sectionId) {
+                case 'overview':
+                    loadOverview();
+                    break;
+                case 'users':
+                    loadUsers();
+                    break;
+                case 'api-keys':
+                    loadApiKeys();
+                    break;
+                case 'tickets':
+                    loadTickets();
+                    break;
+            }
+        }
+
+        async function loadOverview() {
+            try {
+                const [users, apiKeys, tickets, stats] = await Promise.all([
+                    fetch('/admin/users').then(r => r.json()),
+                    fetch('/admin/api-keys').then(r => r.json()),
+                    fetch('/admin/tickets').then(r => r.json()),
+                    fetch('/stats').then(r => r.json())
+                ]);
+
+                // Update overview cards
+                document.getElementById('totalUsers').textContent = users.length;
+                document.getElementById('activeApiKeys').textContent = apiKeys.filter(k => k.is_active).length;
+                document.getElementById('openTickets').textContent = tickets.filter(t => t.status === 'open').length;
+
+                // Update charts
+                updateVulnerabilityTrendsChart(stats.monthly_trends);
+                updateSeverityChart(stats.severity_distribution);
+                updateApiUsageChart(stats.api_usage);
+                updateUserActivityChart(stats.user_activity);
+            } catch (error) {
+                console.error('Error loading overview:', error);
+            }
+        }
+
+        function updateVulnerabilityTrendsChart(trends) {
+            const ctx = document.getElementById('vulnerabilityTrendsChart').getContext('2d');
+            if (vulnerabilityTrendsChart) {
+                vulnerabilityTrendsChart.destroy();
+            }
+            
+            vulnerabilityTrendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trends.map(t => t.month),
+                    datasets: [{
+                        label: 'Vulnerabilities',
+                        data: trends.map(t => t.count),
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSeverityChart(severity) {
+            const ctx = document.getElementById('severityChart').getContext('2d');
+            if (severityChart) {
+                severityChart.destroy();
+            }
+            
+            severityChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(severity),
+                    datasets: [{
+                        data: Object.values(severity),
+                        backgroundColor: [
+                            'rgb(255, 99, 132)',
+                            'rgb(54, 162, 235)',
+                            'rgb(255, 205, 86)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        }
+
+        function updateApiUsageChart(usage) {
+            const ctx = document.getElementById('apiUsageChart').getContext('2d');
+            if (apiUsageChart) {
+                apiUsageChart.destroy();
+            }
+            
+            apiUsageChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: usage.map(u => `Key ${u.key_id}`),
+                    datasets: [{
+                        label: 'Total Requests',
+                        data: usage.map(u => u.total_requests),
+                        backgroundColor: 'rgb(75, 192, 192)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateUserActivityChart(activity) {
+            const ctx = document.getElementById('userActivityChart').getContext('2d');
+            if (userActivityChart) {
+                userActivityChart.destroy();
+            }
+            
+            userActivityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: activity.map(a => a.email),
+                    datasets: [{
+                        label: 'Tickets',
+                        data: activity.map(a => a.ticket_count),
+                        backgroundColor: 'rgb(255, 99, 132)'
+                    }, {
+                        label: 'API Keys',
+                        data: activity.map(a => a.api_key_count),
+                        backgroundColor: 'rgb(54, 162, 235)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadUsers() {
+            try {
+                const users = await fetch('/admin/users').then(r => r.json());
+                usersTableBody.innerHTML = users.map(user => `
+                    <tr>
+                        <td>${user.email}</td>
+                        <td>
+                            <span class="badge ${user.is_active ? 'bg-success' : 'bg-danger'}">
+                                ${user.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                        <td>${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
+                        <td>${user.api_key_count}</td>
+                        <td>${user.ticket_count}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        async function loadApiKeys() {
+            try {
+                const apiKeys = await fetch('/admin/api-keys').then(r => r.json());
+                apiKeysTableBody.innerHTML = apiKeys.map(key => `
+                    <tr>
+                        <td>${key.user_email}</td>
+                        <td>${key.name}</td>
+                        <td>
+                            <span class="badge ${key.is_active ? 'bg-success' : 'bg-danger'}">
+                                ${key.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td>${new Date(key.created_at).toLocaleDateString()}</td>
+                        <td>${key.last_used ? new Date(key.last_used).toLocaleDateString() : 'Never'}</td>
+                        <td>${key.usage_count}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading API keys:', error);
+            }
+        }
+
+        async function loadTickets(status = 'all') {
+            try {
+                const tickets = await fetch('/admin/tickets').then(r => r.json());
+                const filteredTickets = status === 'all' ? tickets : tickets.filter(t => t.status === status);
+                
+                ticketsList.innerHTML = filteredTickets.map(ticket => `
+                    <div class="card ticket-priority-${ticket.priority}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="card-title">${ticket.subject}</h5>
+                                    <p class="card-text text-muted">From: ${ticket.user_email}</p>
+                                    <p class="card-text">${ticket.description}</p>
+                                </div>
+                                <div>
+                                    <span class="badge ticket-status-${ticket.status}">${ticket.status}</span>
+                                    <span class="badge bg-${getPriorityColor(ticket.priority)}">${ticket.priority}</span>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Created: ${new Date(ticket.created_at).toLocaleDateString()}</small>
+                                <button class="btn btn-sm btn-primary float-end" onclick="showTicketDetails(${ticket.id})">
+                                    View Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading tickets:', error);
+            }
+        }
+
+        function getPriorityColor(priority) {
+            switch(priority) {
+                case 'high': return 'danger';
+                case 'medium': return 'warning';
+                case 'low': return 'success';
+                default: return 'secondary';
+            }
+        }
+
+        async function showTicketDetails(ticketId) {
+            try {
+                const ticket = await fetch(`/admin/tickets/${ticketId}`).then(r => r.json());
+                currentTicketId = ticketId;
+                
+                ticketDetails.innerHTML = `
+                    <h5>${ticket.subject}</h5>
+                    <p class="text-muted">From: ${ticket.user_email}</p>
+                    <p>${ticket.description}</p>
+                    <div class="mb-3">
+                        <span class="badge ticket-status-${ticket.status}">${ticket.status}</span>
+                        <span class="badge bg-${getPriorityColor(ticket.priority)}">${ticket.priority}</span>
+                    </div>
+                `;
+                
+                ticketResponses.innerHTML = ticket.responses.map(response => `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>${response.is_admin ? 'Admin' : response.user_email}</strong>
+                                    <p class="mb-0">${response.message}</p>
+                                </div>
+                                <small class="text-muted">${new Date(response.created_at).toLocaleDateString()}</small>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                if (!ticketModal) {
+                    ticketModal = new bootstrap.Modal(document.getElementById('ticketModal'));
+                }
+                ticketModal.show();
+            } catch (error) {
+                console.error('Error loading ticket details:', error);
+            }
+        }
+
+        async function handleResponseSubmit(e) {
+            e.preventDefault();
+            if (!currentTicketId) return;
+            
+            try {
+                const response = await fetch(`/admin/tickets/${currentTicketId}/respond`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: responseMessage.value })
+                });
+                
+                if (response.ok) {
+                    responseMessage.value = '';
+                    loadTickets();
+                    showTicketDetails(currentTicketId);
+                }
+            } catch (error) {
+                console.error('Error sending response:', error);
+            }
+        }
+
+        // Initialize
+        showSection('overview');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Dashboard</h1>
+
+    <!-- Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Open Tickets</h5>
+                    <h2 class="card-text" id="openTicketsCount">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Resolved Tickets</h5>
+                    <h2 class="card-text" id="resolvedTicketsCount">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Active API Keys</h5>
+                    <h2 class="card-text" id="activeAPIKeysCount">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total API Calls</h5>
+                    <h2 class="card-text" id="totalAPICallsCount">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Tickets -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Tickets</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentTicketsTableBody">
+                                <!-- Recent tickets will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Usage -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">API Usage</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Success Rate</h6>
+                                    <h2 class="card-text" id="apiSuccessRate">0%</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Avg Response Time</h6>
+                                    <h2 class="card-text" id="apiAvgResponseTime">0ms</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>API Key</th>
+                                    <th>Last Used</th>
+                                    <th>Usage Count</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="apiKeysTableBody">
+                                <!-- API keys will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load dashboard data
+    async function loadDashboardData() {
+        try {
+            const response = await api.get('/api/v1/dashboard/stats');
+            const data = await response.json();
+
+            // Update overview cards
+            document.getElementById('openTicketsCount').textContent = data.open_tickets;
+            document.getElementById('resolvedTicketsCount').textContent = data.resolved_tickets;
+            document.getElementById('activeAPIKeysCount').textContent = data.active_api_keys;
+            document.getElementById('totalAPICallsCount').textContent = data.total_api_calls;
+
+            // Update API usage statistics
+            if (data.api_usage) {
+                document.getElementById('apiSuccessRate').textContent = `${data.api_usage.success_rate.toFixed(1)}%`;
+                document.getElementById('apiAvgResponseTime').textContent = `${data.api_usage.avg_response_time.toFixed(2)}ms`;
+            }
+
+            // Update recent tickets table
+            const ticketsTbody = document.getElementById('recentTicketsTableBody');
+            ticketsTbody.innerHTML = data.recent_tickets.map(ticket => `
+                <tr>
+                    <td>${ticket.subject}</td>
+                    <td>
+                        <span class="badge bg-${ticket.status === 'open' ? 'primary' : 'success'}">
+                            ${ticket.status}
+                        </span>
+                    </td>
+                    <td>${formatDate(ticket.created_at)}</td>
+                </tr>
+            `).join('');
+
+            // Update API keys table
+            const apiKeysTbody = document.getElementById('apiKeysTableBody');
+            apiKeysTbody.innerHTML = data.api_keys.map(apiKey => `
+                <tr>
+                    <td>${apiKey.name}</td>
+                    <td>${apiKey.last_used ? formatDate(apiKey.last_used) : 'Never'}</td>
+                    <td>${apiKey.usage_count}</td>
+                    <td>
+                        <span class="badge bg-${apiKey.is_active ? 'success' : 'danger'}">
+                            ${apiKey.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            showMessage('Error loading dashboard data', 'danger');
+        }
+    }
+
+    // Initial load
+    loadDashboardData();
+
+    // Refresh data every 5 minutes
+    setInterval(loadDashboardData, 5 * 60 * 1000);
+});
+</script>
+{% endblock %} 

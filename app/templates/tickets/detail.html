@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket #{{ ticket.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- Ticket Details -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Ticket #{{ ticket.id }}</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#updateTicketModal">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h4>{{ ticket.subject }}</h4>
+                    <div class="mb-3">
+                        <span class="badge bg-{{ get_status_color(ticket.status) }}">{{ ticket.status }}</span>
+                        <span class="badge bg-{{ get_priority_color(ticket.priority) }}">{{ ticket.priority }}</span>
+                    </div>
+                    <p class="text-muted">
+                        Created: {{ format_date(ticket.created_at) }}
+                        {% if ticket.updated_at != ticket.created_at %}
+                        | Updated: {{ format_date(ticket.updated_at) }}
+                        {% endif %}
+                    </p>
+                    <hr>
+                    <div class="ticket-description">
+                        {{ ticket.description }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comments -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Comments</h5>
+                </div>
+                <div class="card-body">
+                    <div id="commentsList">
+                        {% for comment in ticket.comments %}
+                        <div class="comment mb-3">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>{{ comment.user.email }}</strong>
+                                    {% if comment.is_admin %}
+                                    <span class="badge bg-primary">Admin</span>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">{{ format_date(comment.created_at) }}</small>
+                            </div>
+                            <p class="mb-0">{{ comment.message }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <hr>
+
+                    <form id="commentForm">
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Add Comment</label>
+                            <textarea class="form-control" id="message" name="message" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit Comment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Ticket Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if ticket.status != 'closed' %}
+                        <button class="btn btn-success" onclick="updateTicketStatus('resolved')">
+                            <i class="bi bi-check-circle"></i> Mark as Resolved
+                        </button>
+                        {% endif %}
+                        {% if ticket.status != 'closed' %}
+                        <button class="btn btn-danger" onclick="updateTicketStatus('closed')">
+                            <i class="bi bi-x-circle"></i> Close Ticket
+                        </button>
+                        {% endif %}
+                        {% if ticket.status == 'closed' %}
+                        <button class="btn btn-warning" onclick="updateTicketStatus('open')">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reopen Ticket
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Ticket Modal -->
+<div class="modal fade" id="updateTicketModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Ticket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="updateTicketForm">
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="subject" name="subject" value="{{ ticket.subject }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" required>{{ ticket.description }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="priority" class="form-label">Priority</label>
+                        <select class="form-select" id="priority" name="priority" required>
+                            <option value="low" {% if ticket.priority == 'low' %}selected{% endif %}>Low</option>
+                            <option value="medium" {% if ticket.priority == 'medium' %}selected{% endif %}>Medium</option>
+                            <option value="high" {% if ticket.priority == 'high' %}selected{% endif %}>High</option>
+                            <option value="critical" {% if ticket.priority == 'critical' %}selected{% endif %}>Critical</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateTicketBtn">Update Ticket</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ticketId = {{ ticket.id }};
+
+    // Handle comment submission
+    document.getElementById('commentForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const message = form.message.value;
+
+        try {
+            const response = await api.post(`/api/v1/tickets/${ticketId}/comments`, {
+                message: message
+            });
+
+            if (response.ok) {
+                const comment = await response.json();
+                const commentsList = document.getElementById('commentsList');
+                
+                const commentHtml = `
+                    <div class="comment mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>${comment.user.email}</strong>
+                                ${comment.is_admin ? '<span class="badge bg-primary">Admin</span>' : ''}
+                            </div>
+                            <small class="text-muted">${formatDate(comment.created_at)}</small>
+                        </div>
+                        <p class="mb-0">${comment.message}</p>
+                    </div>
+                `;
+                
+                commentsList.insertAdjacentHTML('beforeend', commentHtml);
+                form.reset();
+                showMessage('Comment added successfully', 'success');
+            }
+        } catch (error) {
+            showMessage('Error adding comment', 'danger');
+        }
+    });
+
+    // Handle ticket update
+    document.getElementById('updateTicketBtn').addEventListener('click', async function() {
+        const form = document.getElementById('updateTicketForm');
+        const formData = new FormData(form);
+
+        try {
+            const response = await api.put(`/api/v1/tickets/${ticketId}`, {
+                subject: formData.get('subject'),
+                description: formData.get('description'),
+                priority: formData.get('priority')
+            });
+
+            if (response.ok) {
+                const updatedTicket = await response.json();
+                location.reload();
+            }
+        } catch (error) {
+            showMessage('Error updating ticket', 'danger');
+        }
+    });
+});
+
+// Update ticket status
+async function updateTicketStatus(status) {
+    try {
+        const response = await api.put(`/api/v1/tickets/${ticketId}`, {
+            status: status
+        });
+
+        if (response.ok) {
+            location.reload();
+        }
+    } catch (error) {
+        showMessage('Error updating ticket status', 'danger');
+    }
+}
+</script>
+{% endblock %} 
