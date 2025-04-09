@@ -27,4 +27,4 @@ pytest-cov==2.12.1
 black==21.7b0
 isort==5.9.3
 flake8==3.9.2
-mypy==0.910 
+mypy==0.910 aiofiles==23.2.1
